@@ -1,5 +1,8 @@
 import praw
 import nltk
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def save_comments_to_file(comments_list):
@@ -66,6 +69,14 @@ def main():
 
     lemmatized_tokens = lemmatize(filtered_tokens)
     print("Liczba słów po lematyzacji: ", len(lemmatized_tokens))
+
+    fd = nltk.FreqDist(lemmatized_tokens).most_common(10)
+    fd = pd.Series(dict(fd))
+    fig, ax = plt.subplots()
+    plot = sns.barplot(x=fd.index, y=fd.values, ax=ax)
+    plt.xticks(rotation=30)
+    plt.title("Frequency Distribution")
+    plt.savefig("freq_dist.png")
 
 
 if __name__ == "__main__":
