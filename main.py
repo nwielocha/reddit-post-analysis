@@ -1,8 +1,11 @@
+import os
 import praw
 import nltk
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
 from wordcloud import WordCloud
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from datetime import datetime
 
 
 def save_comments_to_file(comments_list):
@@ -15,7 +18,13 @@ def save_comments_to_file(comments_list):
 def get_comments(filename):
     with open(filename, 'r') as file:
         comments_list = [line.strip() for line in file]
-    return comments_list
+
+    def filter_comments(comments_list):
+        filtered_comments = [
+            c for c in comments_list if c not in ('', "[deleted]")]
+        filtered_comments = [f for f in filtered_comments if "http" not in f]
+        return filtered_comments
+    return filter_comments(comments_list)
 
 
 def read_file(filename):
@@ -44,32 +53,43 @@ def lemmatize(filtered_tokens):
 
 def freq_dist(lemmatized_tokens):
     fd = nltk.FreqDist(lemmatized_tokens).most_common(10)
-    # fd = pd.Series(dict(fd))
     return fd
 
 
 def wordcloud(tokens):
     stopwords = nltk.corpus.stopwords.words("english")
+    print(stopwords)
     text = ' '.join(tokens)
     wordcloud = WordCloud(stopwords=stopwords).generate(text)
     plt.imshow(wordcloud, interpolation="bilinear")
     plt.axis("off")
     plt.savefig("wordcloud.png")
-    # plt.show()
 
 
-# def get_sentiment():
+def get_sentiment(comments_list):
+    sia = SentimentIntensityAnalyzer()
+    compound_scores = [sia.polarity_scores(
+        comment)['compound'] for comment in comments_list]
+    average_score = sum(compound_scores) / len(compound_scores)
+
+    if average_score > 0:
+        return f"Positive: {average_score}"
+    elif average_score < 0:
+        return f"Negative: {average_score}"
+    else:
+        return "Neutral"
 
 
 def main():
-    '''
+    load_dotenv()
+    print(os.getenv("CLIENT_ID"))
     # Uncomment this section if first run
 
     reddit = praw.Reddit(user_agent=True,
-                         client_id="Y3R6ijGXxjPfCFtnM8sWMw",
-                         client_secret="DkaLTGy4-gPUwjpQaruHbB1h_wTOLQ",
-                         username="Imaginary_Pickle_556",
-                         password="%\"vHQxX?gKB!j9&")
+                         client_id=os.getenv("CLIENT_ID"),
+                         client_secret=os.getenv("CLIENT_SECRET"),
+                         username=os.getenv("USERNAME"),
+                         password=os.getenv("PASSWORD"))
 
     url = "https://www.reddit.com/r/coolguides/comments/172z892/a_cool_guide_on_the_human_cost_of_the/"
 
@@ -80,15 +100,14 @@ def main():
 
     save_comments_to_file(all_comments)
 
-
-    # nltk.download("all")
-
-    '''
+    nltk.download("all")
 
     filename = "all_comments.txt"
     comments_list = get_comments(filename)
+    print(len(comments_list))
 
-    data = read_file(filename)
+    # data = read_file(filename)
+    data = ''.join(comments_list)
     tokens = tokenize(data)
     print("Liczba słów po tokenyzacji: ", len(tokens))
 
@@ -111,7 +130,7 @@ def main():
     plt.savefig("freq_dist.png")
     # plt.show()
 
-    wordcloud(tokens)
+    wordcloud(lemmatized_tokens)
 
     # text = nltk.Text(data)
     # print(text.concordance("hamas", lines=5))
@@ -129,6 +148,9 @@ def main():
     plt.title("Frequent Three-Word Combinations")
     plt.tight_layout()
     plt.savefig("trigram_freq_dist.png")
+
+    overal_sentiment = get_sentiment(comments_list)
+    print(overal_sentiment)
 
 
 if __name__ == "__main__":
